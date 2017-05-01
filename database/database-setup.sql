@@ -28,6 +28,7 @@ GRANT ALL PRIVILEGES ON newsDB.* TO 'aggregator'@'localhost';
 
 CREATE TABLE IF NOT EXISTS ADMIN (
 	admin_id INT(4) NOT NULL AUTO_INCREMENT,
+	name varchar (64) NOT NULL,
 	email varchar(64) NOT NULL,
 	username varchar(64) NOT NULL,
 	password varchar(20) NOT NULL,
@@ -51,11 +52,11 @@ CREATE TABLE IF NOT EXISTS NEWS (
 
 /*	POPULATE TABLES	*/
 /*	Insert initial admin users	*/
-INSERT INTO ADMIN ( email, username, password )
+INSERT INTO ADMIN ( name, email, username, password )
 	VALUES 
 	( 
-		'joderamos@up.edu.ph', 'joderamos', 'joderamos'
+		'Janel de Ramos', 'joderamos@up.edu.ph', 'joderamos', 'joderamos'
 	),
 	(
-		'mnblaquera@up.edu.ph', 'mnblaquera', 'mnblaquera'
+		'Chelseah Blaquera', 'mnblaquera@up.edu.ph', 'mnblaquera', 'mnblaquera'
 	)
