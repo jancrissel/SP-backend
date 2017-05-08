@@ -151,7 +151,7 @@ class PhilStarSpider(Spider):
 				#print(listOfWords)	#prints list of tokenized words
 			#print items
 			outputFile(items,"PhilStar")
-			#connectDB(items,"PhilStar")
+			connectDB(items,"PhilStar")
 			
 #############################################################################################
 # ----- FUNCTION THAT CHECKS IF ITEM FIELD IS NULL AND CONVERTS IT (UNICODE) TO UTF-8 ----- #
@@ -203,7 +203,7 @@ def connectDB(items, name):
 	
 	for row in csv_data:	
 		#if (cursor.execute('SELECT COUNT(TITLE) FROM NEWS WHERE TITLE LIKE ''') == 0)
-		cursor.execute('INSERT INTO NEWS(title, author, link, image) VALUES(%s, %s, %s, %s)', row)				# Insert each data into table
+		cursor.execute('INSERT INTO NEWS(title, author, link, image) VALUES(%s, %s, %s, %s)', row)					# Insert each data into table
 	mydb.commit()													
 	cursor.close()																									# Close the connection to the database
 	print "Done"
@@ -212,8 +212,8 @@ def connectDB(items, name):
 # ----- DECLARES AND STARTS ALL PROCESSES ----- #
 #################################################
 process = CrawlerProcess()
-#process.crawl(InquirerSpider)
-#process.crawl(PCAARRDSpider)
+process.crawl(InquirerSpider)
+process.crawl(PCAARRDSpider)
 process.crawl(PhilStarSpider)
 process.start()
 
