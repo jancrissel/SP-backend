@@ -29,11 +29,10 @@ GRANT ALL PRIVILEGES ON newsDB.* TO 'aggregator'@'localhost';
 CREATE TABLE IF NOT EXISTS ADMIN (
 	admin_id INT(4) NOT NULL AUTO_INCREMENT,
 	name varchar (64) NOT NULL,
-	email varchar(64) NOT NULL,
+	email varchar(64) NOT NULL UNIQUE,
 	username varchar(64) NOT NULL,
 	password varchar(20) NOT NULL,
 	PRIMARY KEY (admin_id)
-/*	FOREIGN KEY (email) REFERENCES USER(email) ON DELETE CASCADE */
 );
 
 /* CREATE TABLE for News */
