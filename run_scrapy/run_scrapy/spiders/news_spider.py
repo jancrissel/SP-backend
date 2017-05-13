@@ -33,7 +33,7 @@ class InquirerSpider(Spider):
 			word = ""
 			wordsToSplit = ""
 			listOfWords = []
-			news = {} #hashmap of news titles
+			news = {}																							   	# Hashmap of news titles
 
 			for titles in titles:
 				item = RunScrapyItem()
@@ -62,9 +62,9 @@ class InquirerSpider(Spider):
 				#print(item)
 				#print(listOfWords)																					# Prints list of tokenized words	
 			#return items
-			outputFile(items,"Inquirer")
+#			outputFile(items,"Inquirer")
 			connectDB(items, "Inquirer")
-				
+					
 class PCAARRDSpider(Spider):
 	name = "PCAARRD"
 	allowed_domains = ["pcaarrd.dost.gov.ph"]
@@ -99,14 +99,6 @@ class PCAARRDSpider(Spider):
 				linkConverter(item, "image", "www.pcaarrd.dost.gov.ph")
 				items.append(item)
 
-			#for item in items:
-			#titleList.append(item["title"]) #appends list of titles into new list			
-
-#			for item in titleList:
-				#print(item)
-				#print(listOfWords)	#prints list of tokenized words
-			#print items
-			outputFile(items,"PCAARRD")
 			connectDB(items, "PCAARRD")
 
 class PhilStarSpider(Spider):
@@ -123,16 +115,15 @@ class PhilStarSpider(Spider):
 			word = ""
 			wordsToSplit = ""
 			listOfWords = []
-			news = {} #hashmap of news titles
+			news = {} 																							# Hashmap of news titles
 
 			for titles in titles:
 				item = RunScrapyItem()
 				item ["author"] = "Philippine Star"				
 				item ["title"] = titles.xpath("span[@class='article-title']/a/text()").extract()[0]
 				wordsToSplit = str(titles.xpath("span[@class='article-title']/a/text()").extract()) 
-				word = [word.strip(string.punctuation) for word in wordsToSplit.split()]
-				#splits strings into tokens removing punctuation marks	
-				listOfWords.append(word) #puts tokenized strings into list
+				word = [word.strip(string.punctuation) for word in wordsToSplit.split()]						# Splits strings into tokens removing punctuation marks	
+				listOfWords.append(word) 																		# Puts tokenized strings into list
 
 				#BAG OF WORDS / HASH MAP PER TITLE
 
@@ -143,14 +134,6 @@ class PhilStarSpider(Spider):
 				itemConverter(item, "image")
 				items.append(item)
 
-			#for item in items:
-			#titleList.append(item["title"]) #appends list of titles into new list			
-
-#			for item in titleList:
-				#print(item)
-				#print(listOfWords)	#prints list of tokenized words
-			#print items
-			outputFile(items,"PhilStar")
 			connectDB(items,"PhilStar")
 			
 #############################################################################################
@@ -171,39 +154,28 @@ def linkConverter(item, fieldType, domain):
 		if type(item[fieldType]) == list:																		# If item field is NULL,
 			item[fieldType] = None																			    # Ignore		
 
-
-###################################################################
-# ----- FUNCTION THAT OUTPUTS SCRAPED ITEMS INTO A CSV FILE ----- #
-###################################################################
-def outputFile(items,name):
-			writer = csv.writer(open("{}.csv".format(name),'wb'))
-			writer.writerow(['title', 'author', 'link', 'image'])
-			for item in items:
-				if item["title"] in (None,""): 																	# Skips empty fields
-					continue		
-				else:																							# Writes Fields with complete data
-					writer.writerow([item['title'], item['author'], item['link'], item['image']])			
-			return items
-
-####################################################################
-# ----- FUNCTION THAT INSERTS DATA FROM CSV FILE TO MYSQL DB ----- #
-####################################################################
+######################################################
+# ----- FUNCTION THAT INSERTS DATA TO MYSQL DB ----- #
+######################################################
 def connectDB(items, name):
 	mydb = MySQLdb.connect(host='localhost',
 	    user='aggregator',
 	    passwd='aggregator',
 	    db='newsDB')
 	cursor = mydb.cursor()
-
-	csv_data = csv.reader(file(name+'.csv'))
-	next(csv_data)																									# SKIP first line	
 	
-	if (cursor.execute('SELECT * FROM NEWS LIMIT 1') == 0):															# If NEWS table is EMPTY,
-		cursor.execute('ALTER TABLE NEWS AUTO_INCREMENT=1')															# Resets news_id 
+	if (cursor.execute('SELECT * FROM NEWS LIMIT 1') == 0):														# If NEWS table is EMPTY,
+		cursor.execute('ALTER TABLE NEWS AUTO_INCREMENT=1')														# Resets news_id 
 	
-	for row in csv_data:	
-		#if (cursor.execute('SELECT COUNT(TITLE) FROM NEWS WHERE TITLE LIKE ''') == 0)
-		cursor.execute('INSERT INTO NEWS(title, author, link, image) VALUES(%s, %s, %s, %s)', row)					# Insert each data into table
+	for item in items:	
+		if(item['title'] != None):																				# If Title Field is NOT empty,
+			if(item['image'] == None):																			# If Image field is NONE,
+				item['image'] = "NULL"	
+			print(item['title'])																				# Then set the string NULL as its value	
+			if(cursor.execute('SELECT * FROM NEWS WHERE title like '+"'%"+item['title']+"%' LIMIT 1")==0):		# If Title is NOT a duplicate,
+				if(item['link'] != None):																		# Proceed to insertion
+					cursor.execute('INSERT INTO NEWS(title, author, link, image) VALUES("'+item['title']+'","'+item['author']+'","'+item['link']+'","'+item['image']+'")')	
+					print "Inserted successfully!"			
 	mydb.commit()													
 	cursor.close()																									# Close the connection to the database
 	print "Done"
