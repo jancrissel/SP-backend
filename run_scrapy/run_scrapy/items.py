@@ -11,4 +11,5 @@ class RunScrapyItem(scrapy.Item):
 	author = scrapy.Field()
 	title = scrapy.Field()
 	link = scrapy.Field()
+	intro = scrapy.Field()
 	image = scrapy.Field()
