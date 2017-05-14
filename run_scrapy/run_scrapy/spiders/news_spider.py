@@ -4,15 +4,14 @@
 #	PROGRAM DESCRIPTION: This program makes use of multiple spiders to crawl on different web sites. The scraped data will then be stored #
 #						 on separate CSV files, one for each spider. 																	  #
 ###########################################################################################################################################
-						 
+
+import scrapy
 from scrapy.spiders import Spider
 from scrapy.crawler import CrawlerProcess
 from scrapy.selector import Selector
 from run_scrapy.items import RunScrapyItem
 import string
-import csv
 import MySQLdb
-
 
 items = []
 
@@ -27,15 +26,16 @@ class InquirerSpider(Spider):
 	def parse(self, response):
 			hxs = Selector(response)
 			titles = hxs.xpath("//h2")
-			items = []
 			data = []
 			titleList = []
 			word = ""
 			wordsToSplit = ""
 			listOfWords = []
-			news = {}																							   	# Hashmap of news titles
+			news = {}
+			wordFreq = 0																							   	# Hashmap of news titles
 
 			for titles in titles:
+				listOfWords = []
 				item = RunScrapyItem()
 				item ["author"] = "Philippine Daily Inquirer"
 				item ["title"] = titles.xpath("a/text()").extract()													# Extracts Title 
@@ -46,15 +46,22 @@ class InquirerSpider(Spider):
 				
 				wordsToSplit = str(titles.xpath("a/text()").extract()) 
 				word = [word.strip(string.punctuation) for word in wordsToSplit.split()]							# Splits strings into tokens removing punctuation marks	
+				wordFreq = len(word)
 				listOfWords.append(word) 																			# Puts tokenized strings into list
 
-				##### BAG OF WORDS / HASH MAP PER TITLE #####
-				
+				##### BAG OF WORDS / CATEGORIZATION #####
+				#categorizeNews(listOfWords, wordFreq)
+
+
 				item ["link"] = titles.xpath("a/@href").extract()													# Extracts Link 
 				itemConverter(item,"link")																			# Checks if valid type or if not empty, then converts it to utf-8
 				item ["image"] = "NULL"																				# Stores items in image field as null
-				items.append(item)																					# Appends to Items
 
+				if item["link"] != None:
+					request = scrapy.Request(item["link"], callback=self.parsepage2)
+					request.meta["item"] = item
+					request.meta["link"] = item["link"]
+					yield request				
 			#for item in items:
 			#	titleList.append(item["title"]) 																	# Appends list of titles into new list			
 
@@ -62,44 +69,70 @@ class InquirerSpider(Spider):
 				#print(item)
 				#print(listOfWords)																					# Prints list of tokenized words	
 			#return items
-#			outputFile(items,"Inquirer")
-			connectDB(items, "Inquirer")
+
+	def parsepage2(self,response):
+		item = response.meta["item"]
+		hxs = Selector(response)
+		parts = hxs.xpath("//div[@id='outbrain_readmore']")
+
+		for parts in parts:
+			if len(parts.xpath("p/text()")) < 1:
+				item["intro"] = parts.xpath("div/p/text()")[0].extract().encode('utf-8')	 
+			else: 
+				item["intro"] = parts.xpath("p/text()")[0].extract().encode('utf-8')	
+		items.append(item)																							# Appends to Items
+		connectDB(item, "Inquirer")
 					
 class PCAARRDSpider(Spider):
 	name = "PCAARRD"
 	allowed_domains = ["pcaarrd.dost.gov.ph"]
 	start_urls = ["http://www.pcaarrd.dost.gov.ph/home/portal/index.php/2015-02-26-06-57-10/news-archive"]
-
+	
 	def parse(self, response):
-			hxs = Selector(response)
-			titles = hxs.xpath("//li")
-			items = []
-			text_items = []
-			titleList = []
-			word = ""
-			wordsToSplit = ""
-			listOfWords = []
-			news = {} #hashmap of news titles
+		hxs = Selector(response)
+		titles = hxs.xpath("//li")
+		text_items = []
+		titleList = []
+		word = ""
+		wordsToSplit = ""
+		listOfWords = []
+		news = {} #hashmap of news titles
 
-			for titles in titles:
-				item = RunScrapyItem()
-				item ["author"] = "DOST-PCAARRD"				
-				item ["title"] = titles.xpath("h2[@itemprop='name']/a/text()").extract()
-				itemConverter(item, "title")
-				wordsToSplit = str(titles.xpath("h2[@itemprop='name']/a/text()").extract()) 
-				word = [word.strip(string.punctuation) for word in wordsToSplit.split()]
-				#splits strings into tokens removing punctuation marks	
-				listOfWords.append(word) #puts tokenized strings into list
+		for titles in titles:
+			item = RunScrapyItem()
+			item ["author"] = "DOST-PCAARRD"				
+			item ["title"] = titles.xpath("h2[@itemprop='name']/a/text()").extract()
+			itemConverter(item, "title")
+			wordsToSplit = str(titles.xpath("h2[@itemprop='name']/a/text()").extract()) 
+			word = [word.strip(string.punctuation) for word in wordsToSplit.split()]
+			#splits strings into tokens removing punctuation marks	
+			listOfWords.append(word) #puts tokenized strings into list
 
-				#BAG OF WORDS / HASH MAP PER TITLE
-		
-				item ["link"] = titles.xpath("h2[@itemprop='name']/a/@href").extract()
-				linkConverter(item, "link", "www.pcaarrd.dost.gov.ph")			
-				item ["image"] = titles.xpath("div/p/img[@class='caption']/@src").extract()
-				linkConverter(item, "image", "www.pcaarrd.dost.gov.ph")
-				items.append(item)
+			#BAG OF WORDS / HASH MAP PER TITLE
+	
+			item ["link"] = titles.xpath("h2[@itemprop='name']/a/@href").extract()
+			linkConverter(item, "link", "http://www.pcaarrd.dost.gov.ph")			
+			item ["image"] = titles.xpath("div/p/img[@class='caption']/@src").extract()
+			linkConverter(item, "image", "www.pcaarrd.dost.gov.ph")
+			if item["image"] == None:
+				item ["image"] = "NULL" 
 
-			connectDB(items, "PCAARRD")
+			if item ["link"] != None:
+				request = scrapy.Request(item["link"], callback=self.parsepage2)
+				request.meta["item"] = item
+				request.meta["link"] = item["link"]
+				yield request		
+
+	def parsepage2(self,response):
+		item = response.meta["item"]
+		hxs = Selector(response)
+		parts = hxs.xpath("//div[@itemprop='articleBody']")
+
+		for parts in parts:
+			item["intro"] = parts.xpath("p/text()")[0].extract().encode('utf-8')	
+		items.append(item)																							# Appends to Items
+		connectDB(item, "PCAARRD")
+
 
 class PhilStarSpider(Spider):
 	name = "PhilStar"
@@ -120,21 +153,44 @@ class PhilStarSpider(Spider):
 			for titles in titles:
 				item = RunScrapyItem()
 				item ["author"] = "Philippine Star"				
-				item ["title"] = titles.xpath("span[@class='article-title']/a/text()").extract()[0]
+				item ["title"] = titles.xpath("span[@class='article-title']/a/text()").extract()[0].encode('utf-8')
 				wordsToSplit = str(titles.xpath("span[@class='article-title']/a/text()").extract()) 
 				word = [word.strip(string.punctuation) for word in wordsToSplit.split()]						# Splits strings into tokens removing punctuation marks	
 				listOfWords.append(word) 																		# Puts tokenized strings into list
 
 				#BAG OF WORDS / HASH MAP PER TITLE
 
-
-				item ["link"] = titles.xpath("span[@class='article-title']/a/@href").extract()[0]
+				item ["link"] = titles.xpath("span[@class='article-title']/a/@href").extract()[0].encode('utf-8')
 				item ["link"] = "http://philstar.com"+item["link"]
 				item ["image"] = titles.xpath("span[@class='img-left']/img/@src").extract()
 				itemConverter(item, "image")
-				items.append(item)
+				if item["image"] == None:
+					item ["image"] = "NULL" 
 
-			connectDB(items,"PhilStar")
+				#print(item)
+				if item ["link"] != None:
+					request = scrapy.Request(item["link"], callback=self.parsepage2)
+					request.meta["item"] = item
+					request.meta["link"] = item["link"]
+					yield request		
+
+	def parsepage2(self,response):
+		item = response.meta["item"]
+		hxs = Selector(response)
+		parts = hxs.xpath("//div[@class='field-items']/div[@class='field-item even']")
+		i = 0
+
+		for parts in parts:
+			if i == 2:
+				if len(parts.xpath("p/text()")) < 1:															
+					item["intro"] = parts.xpath("div/text()")[0].extract().encode('utf-8')	
+				else:			
+					item["intro"] = parts.xpath("p/text()")[0].extract().encode('utf-8')	 
+			i = i + 1	#counter update
+	
+		items.append(item)																						# Appends to Items	
+		connectDB(item, "PhilStar")																				# Inserts to database
+
 			
 #############################################################################################
 # ----- FUNCTION THAT CHECKS IF ITEM FIELD IS NULL AND CONVERTS IT (UNICODE) TO UTF-8 ----- #
@@ -154,10 +210,20 @@ def linkConverter(item, fieldType, domain):
 		if type(item[fieldType]) == list:																		# If item field is NULL,
 			item[fieldType] = None																			    # Ignore		
 
+################################################################################################
+# ----- CATEGORIZES NEWS HEADLINES INTO ITS CORRESPONDING CATEGORY USING TF-IDF & KMEANS ----- #
+################################################################################################
+def categorizeNews(listOfWords, wordFreq):
+	# After Tokenizing the news titles,
+	# TF-IDF COMPUTATION. Weights of the words are computed here.
+	print(wordFreq)
+	#Get the Term Frequency by the number of times a word appears in the title, normalized by dividing by the total number of words found in the title 
+
+
 ######################################################
 # ----- FUNCTION THAT INSERTS DATA TO MYSQL DB ----- #
 ######################################################
-def connectDB(items, name):
+def connectDB(item, name):
 	mydb = MySQLdb.connect(host='localhost',
 	    user='aggregator',
 	    passwd='aggregator',
@@ -166,18 +232,13 @@ def connectDB(items, name):
 	
 	if (cursor.execute('SELECT * FROM NEWS LIMIT 1') == 0):														# If NEWS table is EMPTY,
 		cursor.execute('ALTER TABLE NEWS AUTO_INCREMENT=1')														# Resets news_id 
-	
-	for item in items:	
-		if(item['title'] != None):																				# If Title Field is NOT empty,
-			if(item['image'] == None):																			# If Image field is NONE,
-				item['image'] = "NULL"	
-			print(item['title'])																				# Then set the string NULL as its value	
-			if(cursor.execute('SELECT * FROM NEWS WHERE title like '+"'%"+item['title']+"%' LIMIT 1")==0):		# If Title is NOT a duplicate,
-				if(item['link'] != None):																		# Proceed to insertion
-					cursor.execute('INSERT INTO NEWS(title, author, link, image) VALUES("'+item['title']+'","'+item['author']+'","'+item['link']+'","'+item['image']+'")')	
-					print "Inserted successfully!"			
+																										
+	if(cursor.execute('SELECT * FROM NEWS WHERE title like '+"'%"+item['title']+"%' LIMIT 1")==0):				# If Title is NOT a duplicate,																	
+		# Proceed to insertion
+		cursor.execute('INSERT INTO NEWS(title, author, link, introText, image) VALUES("'+item['title']+'","'+item['author']+'","'+item['link']+'","'+item['intro']+'","'+item['image']+'")')	
+		print "Inserted successfully!"			
 	mydb.commit()													
-	cursor.close()																									# Close the connection to the database
+	cursor.close()																								# Close the connection to the database
 	print "Done"
 
 #################################################
