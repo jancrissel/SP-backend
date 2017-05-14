@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS NEWS (
 	category varchar(64),
 	author varchar(64) NOT NULL,
 	link varchar(255) NOT NULL,
-/*	introText text NOT NULL, */
+	introText text NOT NULL, 
 	image varchar(255),
 /*	datePub varchar(40) NOT NULL */
 	PRIMARY KEY (news_id)
